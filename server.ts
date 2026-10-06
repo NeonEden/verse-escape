@@ -25,6 +25,21 @@ const ai = new GoogleGenAI({
   },
 });
 
+// Helper for safe JSON parsing from LLM output
+function safeJsonParse(text: string | undefined, fallback: any = {}) {
+  if (!text) return fallback;
+  try {
+    const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    try {
+      const match = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (match) return JSON.parse(match[0]);
+    } catch {}
+    return fallback;
+  }
+}
+
 // Helper for fallback if API key is not yet set or fails
 function fallbackGeminiResponse(type: string, payload: any) {
   if (type === 'copilot') {
@@ -87,15 +102,14 @@ Devuelve SIEMPRE una respuesta JSON estructurada con estas propiedades:
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
-      contents: `Contexto del poema:\n${poemContext || ''}\n\nTexto seleccionado: "${selectedText || ''}"\n\nPetición del usuario: ${prompt}\nTono deseado: ${tone || 'Melancólico y meditaivo'}`,
+      contents: `Contexto del poema:\n${poemContext || ''}\n\nTexto seleccionado: "${selectedText || ''}"\n\nPetición del usuario: ${prompt}\nTono deseado: ${tone || 'Melancólico y meditativo'}`,
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
       },
     });
 
-    const jsonText = response.text || '{}';
-    const parsed = JSON.parse(jsonText);
+    const parsed = safeJsonParse(response.text, fallbackGeminiResponse('copilot', req.body));
     res.json(parsed);
   } catch (error: any) {
     console.error('Copilot API error:', error);
@@ -122,10 +136,10 @@ app.post('/api/metaphors', async (req, res) => {
       },
     });
 
-    const parsed = JSON.parse(response.text || '{}');
+    const parsed = safeJsonParse(response.text, fallbackGeminiResponse('metaphors', req.body));
     res.json({
       word,
-      suggestions: parsed.suggestions || ["velo de cobre", "rescoldo fugaz", "marea de humo"]
+      suggestions: parsed.suggestions || ["velo de cobre", "rescoldo fugaz", "marea de humo", "penumbra tibia"]
     });
   } catch (error) {
     res.json(fallbackGeminiResponse('metaphors', req.body));
@@ -151,7 +165,7 @@ app.post('/api/rhymes', async (req, res) => {
       },
     });
 
-    const parsed = JSON.parse(response.text || '{}');
+    const parsed = safeJsonParse(response.text, fallbackGeminiResponse('rhymes', req.body));
     res.json(parsed);
   } catch (error) {
     res.json(fallbackGeminiResponse('rhymes', req.body));
@@ -179,7 +193,7 @@ Devuelve un JSON con la propiedad "ghostText" (empezando con "..." si es continu
       },
     });
 
-    const parsed = JSON.parse(response.text || '{}');
+    const parsed = safeJsonParse(response.text, fallbackGeminiResponse('continuation', req.body));
     res.json(parsed);
   } catch (error) {
     res.json(fallbackGeminiResponse('continuation', req.body));
@@ -211,7 +225,7 @@ Devuelve un JSON con:
       },
     });
 
-    const parsed = JSON.parse(response.text || '{}');
+    const parsed = safeJsonParse(response.text, fallbackGeminiResponse('sentiment', req.body));
     res.json(parsed);
   } catch (error) {
     res.json(fallbackGeminiResponse('sentiment', req.body));

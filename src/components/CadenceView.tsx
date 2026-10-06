@@ -1,55 +1,20 @@
 import React, { useState } from 'react';
+import { Poem } from '../types';
+import { countSpanishSyllables } from '../services/metrics';
 
-// Spanish syllable counting algorithm with basic sinalefa rules
-function countSpanishSyllables(verse: string): { count: number; stresses: number[]; type: string } {
-  if (!verse.trim()) return { count: 0, stresses: [], type: 'Vacío' };
-
-  const clean = verse.trim().toLowerCase().replace(/[.,;:!?«»'"]/g, '');
-  const words = clean.split(/\s+/);
-
-  let totalSyllables = 0;
-  const vowels = /[aeiouáéíóúü]/g;
-
-  words.forEach((w) => {
-    const matches = w.match(vowels);
-    let count = matches ? matches.length : 1;
-    // Diphthongs reduction
-    if (/[aeiou][aeiou]/i.test(w)) count = Math.max(1, count - 1);
-    totalSyllables += count;
-  });
-
-  // Sinalefa estimation (vowel ending followed by vowel starting)
-  for (let i = 0; i < words.length - 1; i++) {
-    const lastChar = words[i].slice(-1);
-    const nextFirstChar = words[i + 1].slice(0, 1);
-    if (/[aeiouáéíóúy]$/.test(lastChar) && /^[aeiouáéíóúh]/.test(nextFirstChar)) {
-      totalSyllables = Math.max(1, totalSyllables - 1);
-    }
-  }
-
-  // Word ending correction (+1 for agudas, 0 for graves, -1 for esdrújulas)
-  const lastWord = words[words.length - 1] || '';
-  if (/[áéíóú][^s]$/.test(lastWord) || /[aeiou]n$/i.test(lastWord) === false && /[áéíóú]$/.test(lastWord)) {
-    totalSyllables += 1; // Aguda
-  }
-
-  let type = 'Verso Libre';
-  if (totalSyllables === 11) type = 'Endecasílabo Clásico';
-  else if (totalSyllables === 14) type = 'Alejandrino Francés/Español';
-  else if (totalSyllables === 8) type = 'Octosílabo Popular';
-  else if (totalSyllables === 7) type = 'Heptasílabo Lírico';
-  else if (totalSyllables === 10) type = 'Decasílabo Himno';
-
-  // Stress positions approximation
-  const stresses = [2, 6, 10].filter(pos => pos <= totalSyllables);
-
-  return { count: totalSyllables, stresses, type };
+interface CadenceViewProps {
+  currentPoem?: Poem;
 }
 
-export const CadenceView: React.FC = () => {
-  const [inputText, setInputText] = useState<string>(
-    `La tarde se deshace en los cristales,\nun rumor de ceniza y sombra tibia;\nel tiempo calla lo que no se alivia...\ny en la penumbra lenta de los sauces.`
-  );
+export const CadenceView: React.FC<CadenceViewProps> = ({ currentPoem }) => {
+  const [inputText, setInputText] = useState<string>(() => {
+    if (currentPoem && currentPoem.stanzas.length > 0) {
+      return currentPoem.stanzas.flatMap(s => s.lines).join('\n');
+    }
+    return `La tarde se deshace en los cristales,\nun rumor de ceniza y sombra tibia;\nel tiempo calla lo que no se alivia...\ny en la penumbra lenta de los sauces.`;
+  });
+
+  const [copied, setCopied] = useState(false);
 
   const lines = inputText.split('\n').filter(l => l.trim().length > 0);
   const metricResults = lines.map(line => ({
@@ -57,19 +22,58 @@ export const CadenceView: React.FC = () => {
     ...countSpanishSyllables(line),
   }));
 
+  const handleLoadCurrentPoem = () => {
+    if (currentPoem) {
+      const text = currentPoem.stanzas.flatMap(s => s.lines).join('\n');
+      setInputText(text);
+    }
+  };
+
+  const handleCopyAnalysis = () => {
+    const summary = metricResults
+      .map((m, i) => `${i + 1}. "${m.line}" -> ${m.count} sílabas (${m.type})`)
+      .join('\n');
+    navigator.clipboard.writeText(summary);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="relative z-10 w-full max-w-5xl mx-auto px-6 py-10 min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="mb-8 border-b border-white/5 pb-6">
-        <div className="font-mono text-[11px] text-[#abcae8] tracking-widest uppercase mb-1">
-          Análisis de Métrica, Sílabas &amp; Acentuación
+      <div className="mb-8 border-b border-white/5 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="font-mono text-[11px] text-[#abcae8] tracking-widest uppercase mb-1">
+            Análisis de Métrica, Sílabas &amp; Acentuación
+          </div>
+          <h1 className="font-serif text-3xl sm:text-4xl text-[#e2e2e9]">
+            Cadence • Inspector de Rítmica Lírica
+          </h1>
+          <p className="font-serif text-[#d4c4b7] text-sm mt-1">
+            Verifica las sinalefas, cesuras y la cadencia acentual de tus estrofas en tiempo real.
+          </p>
         </div>
-        <h1 className="font-serif text-3xl sm:text-4xl text-[#e2e2e9]">
-          Cadence • Inspector de Rítmica Lírica
-        </h1>
-        <p className="font-serif text-[#d4c4b7] text-sm mt-1">
-          Verifica las sinalefas, cesuras y la cadencia acentual de tus estrofas en tiempo real.
-        </p>
+
+        <div className="flex items-center gap-2">
+          {currentPoem && (
+            <button
+              onClick={handleLoadCurrentPoem}
+              className="px-3 py-1.5 bg-[#1a1b21] hover:bg-[#282a2f] text-[#f2be8c] font-mono text-xs rounded-lg transition-all border border-[#f2be8c]/20 flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="Cargar versos del poema que estás editando"
+            >
+              <span className="material-symbols-outlined text-[16px]">sync</span>
+              <span>Cargar Poema Actual</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleCopyAnalysis}
+            className="px-3 py-1.5 bg-[#282a2f] hover:bg-[#33353a] text-[#e2e2e9] font-mono text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer border border-white/10"
+          >
+            <span className="material-symbols-outlined text-[16px]">content_copy</span>
+            <span>{copied ? '¡Copiado!' : 'Copiar Análisis'}</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -81,13 +85,13 @@ export const CadenceView: React.FC = () => {
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            rows={8}
+            rows={10}
             className="w-full bg-[#0c0e13]/90 text-[#e2e2e9] font-serif text-xl p-4 rounded-xl outline-none border border-white/10 focus:border-[#f2be8c]/40 transition-all leading-[2.2] shadow-inner"
             placeholder="Pega o escribe versos aquí..."
           />
           <div className="font-mono text-[10px] text-[#9c8e82] flex justify-between">
-            <span>Regla: Sílabas fonéticas con sinalefa y ajuste final (+1 aguda / -1 esdrújula)</span>
-            <span>{lines.length} versos</span>
+            <span>Regla: Sinalefas fonéticas + ajuste final (+1 aguda / -1 esdrújula)</span>
+            <span>{lines.length} versos analizados</span>
           </div>
         </div>
 
@@ -97,7 +101,7 @@ export const CadenceView: React.FC = () => {
             Desglose Métrico &amp; Rítmico
           </label>
 
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
             {metricResults.map((m, idx) => (
               <div
                 key={idx}
@@ -107,14 +111,14 @@ export const CadenceView: React.FC = () => {
                   <div className="font-serif text-lg text-[#ffdcbd] italic truncate">
                     «{m.line}»
                   </div>
-                  <span className="font-mono text-xs px-2.5 py-1 rounded bg-[#d4a373]/20 text-[#f2be8c] font-bold border border-[#f2be8c]/30">
+                  <span className="font-mono text-xs px-2.5 py-1 rounded bg-[#d4a373]/20 text-[#f2be8c] font-bold border border-[#f2be8c]/30 whitespace-nowrap">
                     {m.count}s
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between text-[#9c8e82] font-mono text-[11px] pt-1">
                   <span>Métrica: <strong className="text-[#e2e2e9] font-normal">{m.type}</strong></span>
-                  <span>Acentos en 2ª, 6ª, 10ª sílaba</span>
+                  <span>Acentos: {m.stresses.length > 0 ? `Sílabas ${m.stresses.join('ª, ')}ª` : 'Armónico'}</span>
                 </div>
               </div>
             ))}
@@ -125,9 +129,9 @@ export const CadenceView: React.FC = () => {
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-[#f2be8c] text-[22px]">verified</span>
               <div>
-                <div className="font-serif text-base text-[#e2e2e9]">Estructura Predominante: Endecasílabo</div>
+                <div className="font-serif text-base text-[#e2e2e9]">Consistencia Lírica</div>
                 <div className="font-mono text-[10px] text-[#9c8e82]">
-                  Consistencia armónica aceptada por el Co-Piloto
+                  Resonancia poética evaluada por el motor de métrica
                 </div>
               </div>
             </div>

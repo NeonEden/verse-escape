@@ -121,7 +121,7 @@ export const EchoesView: React.FC<EchoesViewProps> = ({
                   min="0"
                   max="100"
                   value={crackleVol}
-                  onChange={(e) => handleRainVolChange(Number(e.target.value))}
+                  onChange={(e) => handleCrackleVolChange(Number(e.target.value))}
                   className="w-full accent-[#f2be8c] bg-[#1a1b21] h-1.5 rounded-lg cursor-pointer"
                 />
               </div>

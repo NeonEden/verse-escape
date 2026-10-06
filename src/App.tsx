@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationTab, MoodAtmosphere, Poem, CoPilotMessage, SoundState } from './types';
 import { ShaderCanvas } from './components/ShaderCanvas';
 import { Header } from './components/Header';
@@ -9,6 +9,7 @@ import { CadenceView } from './components/CadenceView';
 import { EchoesView } from './components/EchoesView';
 import { ExportModal } from './components/ExportModal';
 import { soundSynth } from './services/audioSynthesizer';
+import { calculatePoemMetrics } from './services/metrics';
 
 const INITIAL_POEM: Poem = {
   id: 'poem-main',
@@ -16,8 +17,8 @@ const INITIAL_POEM: Poem = {
   volume: 'Tomo IV: Elegías de Otoño',
   title: 'Las cenizas del crepúsculo',
   subtitle: 'Fragmento Lírico — Endecasílabo Clásico',
-  wordsCount: 342,
-  syllablesCount: 518,
+  wordsCount: 24,
+  syllablesCount: 36,
   mood: 'Atardecer Ámbar',
   updatedAt: 'Hoy, 21:42 Nocturno',
   sentiment: {
@@ -73,7 +74,14 @@ const INITIAL_COPILOT_MESSAGES: CoPilotMessage[] = [
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('canvas');
   const [mood, setMood] = useState<MoodAtmosphere>('Atardecer Ámbar');
-  const [poem, setPoem] = useState<Poem>(INITIAL_POEM);
+  const [poem, setPoem] = useState<Poem>(() => {
+    const { words, syllables } = calculatePoemMetrics(INITIAL_POEM.stanzas);
+    return {
+      ...INITIAL_POEM,
+      wordsCount: words || 24,
+      syllablesCount: syllables || 36,
+    };
+  });
   const [coPilotOpen, setCoPilotOpen] = useState<boolean>(true);
   const [coPilotMessages, setCoPilotMessages] = useState<CoPilotMessage[]>(INITIAL_COPILOT_MESSAGES);
   const [exportModalOpen, setExportModalOpen] = useState<boolean>(false);
@@ -85,13 +93,25 @@ export default function App() {
     activePreset: 'Lo-fi Rain',
   });
 
+  // Global Keyboard Shortcut (⌘ + K or Ctrl + K) for CoPilot
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCoPilotOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   // Sound toggle
   const handleToggleSound = () => {
     const isPlayingNow = soundSynth.toggle(soundState.rainVolume, soundState.crackleVolume);
     setSoundState(prev => ({ ...prev, isPlaying: isPlayingNow }));
   };
 
-  // CoPilot message send
+  // CoPilot message send with real API call
   const handleSendMessageToCoPilot = async (promptText: string) => {
     const userMsg: CoPilotMessage = {
       id: `usr-${Date.now()}`,
@@ -119,13 +139,13 @@ export default function App() {
         id: `ai-${Date.now()}`,
         sender: 'assistant',
         timestamp: 'Ahora',
-        content: data.reply || 'Aquí tienes una sugerencia basada en el ritmo y la cadencia de tu poema:',
+        content: data.reply || 'Aquí tienes una propuesta lírica adaptada a la métrica de tu obra:',
         suggestedVerses: data.suggestedVerses || [
           'El mar desaprende su nombre',
           'frente a la piedra que no espera nada.'
         ],
-        metricInfo: data.metricInfo || 'Endecasílabo armónico',
-        tonalAffinity: data.tonalAffinity || { score: '94.0%', poets: 'Lorca & Paz' },
+        metricInfo: data.metricInfo || 'Endecasílabo armónico en 2ª, 6ª y 10ª',
+        tonalAffinity: data.tonalAffinity || { score: '94.0%', poets: 'Lorca & Cernuda' },
       };
 
       setCoPilotMessages(prev => [...prev, aiMsg]);
@@ -152,43 +172,56 @@ export default function App() {
       const updatedStanzas = [...prev.stanzas];
       updatedStanzas.push({
         id: `stanza-${Date.now()}`,
-        lines: verses,
+        lines: [...verses],
       });
 
-      const fullText = updatedStanzas.flatMap(s => s.lines).join(' ');
-      const words = fullText.trim().split(/\s+/).length;
+      const { words, syllables } = calculatePoemMetrics(updatedStanzas);
 
       return {
         ...prev,
         stanzas: updatedStanzas,
         wordsCount: words,
-        syllablesCount: Math.round(words * 1.51),
+        syllablesCount: syllables,
       };
     });
+
+    // Ensure we are on canvas view to see the inserted verses
+    setActiveTab('canvas');
   };
 
   // Create new poem in Archive
   const handleCreateNewPoem = () => {
+    const newStanzas = [
+      {
+        id: `s-${Date.now()}`,
+        lines: ['Abre la noche su puerta de sombra...', 'guarda el silencio lo que el alma nombra.'],
+      },
+    ];
+    const { words, syllables } = calculatePoemMetrics(newStanzas);
+
     const newPoem: Poem = {
       id: `poem-${Date.now()}`,
       notebook: 'CUADERNO DE PENUMBRAS',
       volume: 'Nuevo Tomo',
       title: 'Verso en la Penumbra',
-      subtitle: 'Fragmento Lírico',
-      wordsCount: 45,
-      syllablesCount: 68,
+      subtitle: 'Fragmento Lírico — Endecasílabo Clásico',
+      wordsCount: words,
+      syllablesCount: syllables,
       mood: mood,
       updatedAt: 'Ahora',
-      sentiment: { calidez: 0.5, melancolia: 0.5, penumbra: 0.5, quietud: 0.5 },
-      stanzas: [
-        {
-          id: 's1',
-          lines: ['Abre la noche su puerta de sombra...'],
-        },
-      ],
+      sentiment: { calidez: 0.65, melancolia: 0.70, penumbra: 0.40, quietud: 0.85 },
+      stanzas: newStanzas,
     };
     setPoem(newPoem);
     setActiveTab('canvas');
+  };
+
+  const handleMoodChange = (newMood: MoodAtmosphere) => {
+    setMood(newMood);
+    setPoem(prev => ({
+      ...prev,
+      mood: newMood,
+    }));
   };
 
   return (
@@ -216,7 +249,7 @@ export default function App() {
             poem={poem}
             setPoem={setPoem}
             mood={mood}
-            setMood={setMood}
+            setMood={handleMoodChange}
             onOpenCoPilotWithPrompt={(prompt, text) => {
               setCoPilotOpen(true);
               if (prompt) handleSendMessageToCoPilot(prompt);
@@ -229,14 +262,22 @@ export default function App() {
           <ArchiveView
             currentPoemId={poem.id}
             onSelectPoem={(selected) => {
-              setPoem(selected);
+              const { words, syllables } = calculatePoemMetrics(selected.stanzas);
+              setPoem({
+                ...selected,
+                wordsCount: words,
+                syllablesCount: syllables,
+              });
+              setMood(selected.mood);
               setActiveTab('canvas');
             }}
             onCreateNewPoem={handleCreateNewPoem}
           />
         )}
 
-        {activeTab === 'rhythms' && <CadenceView />}
+        {activeTab === 'rhythms' && (
+          <CadenceView currentPoem={poem} />
+        )}
 
         {activeTab === 'resonances' && (
           <EchoesView
