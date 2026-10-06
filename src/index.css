@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-surface: #111318;
+    --bg-surface-lowest: #0c0e13;
+    --bg-surface-low: #1a1b21;
+    --bg-surface-container: #1e2025;
+    --bg-surface-high: #282a2f;
+    --bg-surface-highest: #33353a;
+    --text-primary: #f2be8c;
+    --text-primary-fixed: #ffdcbd;
+    --text-secondary: #abcae8;
+    --text-on-surface: #e2e2e9;
+    --text-on-surface-variant: #d4c4b7;
+    --text-outline: #9c8e82;
+    --text-outline-variant: #50453b;
+  }
+
+  body {
+    font-family: 'EB Garamond', Georgia, serif;
+    background-color: var(--bg-surface);
+    color: var(--text-on-surface);
+    overscroll-behavior: none;
+  }
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-serif {
+  font-family: 'EB Garamond', Georgia, serif;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 142, 130, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(242, 190, 140, 0.4);
+}
+
+/* Material symbol icon styling */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Keyframe Animations */
+@keyframes breathGlow {
+  0%, 100% {
+    opacity: 0.12;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.22;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+.animate-breath-glow {
+  animation: breathGlow 8s ease-in-out infinite;
+}
+
+/* Custom glassmorphism cards */
+.glass-panel {
+  background: rgba(12, 14, 19, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glass-panel-high {
+  background: rgba(26, 27, 33, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(242, 190, 140, 0.12);
+}
+

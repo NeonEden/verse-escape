@@ -1,0 +1,6 @@
+{
+  "name": "VerseScape - Poetic Writing Sanctuary & AI Co-Pilot",
+  "description": "A meditative, atmospheric writing sanctuary for poets and authors featuring AI co-writing, syllable metrics, ambient soundscapes, and sentiment analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
